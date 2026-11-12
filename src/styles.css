@@ -837,6 +837,85 @@ body.auth-mode main:not(#authScreen) { display: none !important; }
 a.nav-chip { text-decoration: none; color: var(--black); display: inline-block; }
 a.logo { text-decoration: none; color: var(--black); display: inline-block; font-size: 1.2rem; }
 
+/* ===== responsive / per-device layout ===== */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%; /* Android Chrome font-boosting roko */
+}
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+.screen {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+/* chat screen = exact viewport fill, sirf chat area scroll kare */
+.screen--chat {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+.screen--chat .chat-wrap {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+}
+.auth-wrap { min-height: 100vh; min-height: 100dvh; }
+
+@media (max-width: 640px) {
+  html { font-size: 15px; }
+
+  /* topbar ek hi row me, chhota */
+  .topbar { flex-wrap: nowrap; padding: 10px 12px; gap: 8px; overflow-x: auto; }
+  .logo { font-size: 1rem; padding: 8px 12px; white-space: nowrap; flex-shrink: 0; }
+  .topnav { gap: 6px; flex-shrink: 0; }
+  .nav-chip { padding: 8px 10px; font-size: .72rem; white-space: nowrap; }
+
+  /* home */
+  .hero { padding: 24px 12px 10px; }
+  .hero-sub { font-size: .92rem; margin-top: 14px; padding: 10px 14px; }
+  .notebook-section { padding: 18px 14px 60px; }
+  .section-title { font-size: 1.25rem; padding: 7px 12px; }
+  .btn { padding: 10px 14px; font-size: .85rem; }
+
+  /* chat */
+  .chat-wrap { max-width: calc(100vw - 16px); padding: 8px 8px 10px; }
+  .chat-area { padding: 30px 0 12px; gap: 12px; }
+  .msg { max-width: 94%; }
+  .bubble { font-size: .92rem; padding: 10px 12px; }
+  .back-float { top: 8px; left: 8px; }
+  .composer-row { gap: 8px; }
+  .attach-btn { padding: 0 11px; font-size: 1.05rem; }
+  .send-btn { padding: 10px 14px; font-size: .82rem; }
+
+  /* iOS auto-zoom roko: inputs 16px */
+  .chat-input, .nb-input, textarea { font-size: 16px !important; }
+
+  /* profile */
+  .p-head { flex-wrap: wrap; gap: 10px; }
+  .p-stats { grid-template-columns: repeat(2, 1fr); }
+
+  /* modal */
+  .modal { padding: 18px 14px; max-height: 88dvh; max-width: 94vw; }
+  .auth-card { padding: 22px 16px 18px; box-shadow: 7px 7px 0 var(--black); }
+}
+
+@media (max-width: 400px) {
+  html { font-size: 14.5px; }
+  .logo { font-size: .88rem; padding: 7px 9px; }
+  .nav-chip { padding: 7px 8px; font-size: .66rem; }
+  .hero-title { text-shadow: 3px 3px 0 var(--yellow); }
+  .hero-accent { text-shadow: 3px 3px 0 var(--cyan); }
+}
+
 /* ===== app additions (2) ===== */
 .modal { position: relative; }
 .modal-x {

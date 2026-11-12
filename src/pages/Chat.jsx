@@ -208,7 +208,7 @@ export default function Chat({ bookId }) {
   const topics = nb.chat.filter(m => m.role === "user").length;
 
   return (
-    <main className="screen">
+    <main className="screen screen--chat">
       <button className="btn btn--ghost back-float" onClick={() => go("/")}>← BACK</button>
       <section className="nb-head">
         <div className="nb-title-wrap">
