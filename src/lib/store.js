@@ -2,6 +2,7 @@
    Firebase Auth (cloud accounts) + Firestore sync (users/{uid} doc)
    localStorage = offline cache / mirror — app waise hi chalta hai, ab data cloud me bhi safe hai */
 import { LS_KEY, pick } from "./helpers.js";
+import { defaultGame } from "./game.js";
 import { auth, db } from "./firebase.js";
 import {
   onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
@@ -29,7 +30,7 @@ export function logoutSession() { localStorage.removeItem(SESSION_KEY); }
 /* per-account notebook cache: notebook-lab-v3::email */
 export function dataKey(email) { return `${LS_KEY}::${email}`; }
 export function loadState(email) {
-  if (!email) return { notebooks: [] };
+  if (!email) return { notebooks: [], game: defaultGame() };
   let own = null;
   try { own = JSON.parse(localStorage.getItem(dataKey(email))); } catch { own = null; }
   if (!own || !Array.isArray(own.notebooks)) {
@@ -39,6 +40,7 @@ export function loadState(email) {
       own = (legacy && Array.isArray(legacy.notebooks)) ? legacy : { notebooks: [] };
     } catch { own = { notebooks: [] }; }
   }
+  if (!own.game) own.game = defaultGame();
   own.notebooks?.forEach(nb => { nb.chat = (nb.chat || []).filter(m => !m.typing); });
   return own;
 }
@@ -58,7 +60,7 @@ async function pushState() {
   try {
     const state = loadState(me.email);
     await setDoc(doc(db, "users", me.uid),
-      { notebooks: state.notebooks, updatedAt: serverTimestamp() },
+      { notebooks: state.notebooks, game: state.game, updatedAt: serverTimestamp() },
       { merge: true });
   } catch { /* offline — localStorage cache me data safe hai, agli baar sync hoga */ }
 }
@@ -84,17 +86,19 @@ async function downloadState(u) {
   const email = u.email || guestEmail(u.uid);
   let profile = null;
   let cloudNotebooks = null;
+  let cloudGame = null;
   try {
     const snap = await getDoc(doc(db, "users", u.uid));
     if (snap.exists()) {
       profile = snap.data().profile || null;
       cloudNotebooks = Array.isArray(snap.data().notebooks) ? snap.data().notebooks : null;
+      cloudGame = snap.data().game || null;
     }
   } catch { /* offline: cache chalega */ }
 
   if (cloudNotebooks) {
     // cloud hi source of truth hai
-    localStorage.setItem(dataKey(email), JSON.stringify({ notebooks: cloudNotebooks }));
+    localStorage.setItem(dataKey(email), JSON.stringify({ notebooks: cloudNotebooks, game: cloudGame || defaultGame() }));
   }
   const rec = ensureLocalUser(u, profile);
   // pehli baar login & cloud empty → local/legacy data cloud pe push karo

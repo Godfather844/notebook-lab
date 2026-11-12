@@ -1,6 +1,7 @@
 import { useState, useReducer } from "react";
 import { sessionUser, sessionEmail, loadState, updateMeProfile, fbLogout } from "../lib/store.js";
 import { toast, go } from "../lib/helpers.js";
+import { levelInfo, BADGES } from "../lib/game.js";
 import { Modal } from "../components/Chrome.jsx";
 
 const COLORS = ["var(--yellow)", "var(--pink)", "var(--cyan)", "var(--purple)", "var(--green)"];
@@ -23,6 +24,12 @@ export default function Profile() {
   const nbs = state.notebooks || [];
   const chats = nbs.reduce((a, nb) => a + nb.chat.filter(m => m.role === "user").length, 0);
   const quizzes = nbs.reduce((a, nb) => a + nb.chat.filter(m => m.artifact && m.artifact.kind === "quiz").length, 0);
+
+  /* gamification */
+  if (!state.game) state.game = { xp: 0, streak: 0, lastDay: "", daily: "", seen: [] };
+  const g = state.game;
+  const info = levelInfo(g.xp || 0);
+  const seen = new Set(g.seen || []);
 
   async function save() {
     await updateMeProfile({ name: name.trim(), emoji, color });
@@ -55,7 +62,34 @@ export default function Profile() {
             <div className="stat" style={{ "--c": "var(--yellow)" }}><b>{nbs.length}</b><span>NOTEBOOKS</span></div>
             <div className="stat" style={{ "--c": "var(--pink)" }}><b>{chats}</b><span>QUESTIONS</span></div>
             <div className="stat" style={{ "--c": "var(--cyan)" }}><b>{quizzes}</b><span>QUIZZES</span></div>
-            <div className="stat" style={{ "--c": "var(--green)" }}><b>{days}</b><span>DAY STREAK</span></div>
+            <div className="stat" style={{ "--c": "var(--green)" }}><b>🔥 {g.streak || 0}</b><span>DAY STREAK</span></div>
+          </div>
+
+          {/* XP / level progress */}
+          <div className="xp-card">
+            <div className="xp-top">
+              <span className="xp-level">L{info.lvl} {info.name}</span>
+              <span className="xp-amount">⚡ {info.xp} XP</span>
+            </div>
+            <div className="xp-bar"><div className="xp-fill" style={{ width: info.pct + "%" }} /></div>
+            <p className="xp-next">
+              {info.next ? `${info.toNext} XP aur → ${info.next}` : "MAX LEVEL — tum professor ho 🧑‍🏫"}
+            </p>
+          </div>
+
+          {/* badges shelf */}
+          <h3 className="badges-title">🏅 BADGE SHELF</h3>
+          <div className="badges-shelf">
+            {BADGES.map(b => {
+              const got = seen.has(b.id);
+              return (
+                <div key={b.id} className={"badge" + (got ? " got" : "")} title={b.desc}>
+                  <span className="badge-icon">{got ? b.icon : "🔒"}</span>
+                  <b>{b.name}</b>
+                  <small>{b.desc}</small>
+                </div>
+              );
+            })}
           </div>
           <div className="p-actions">
             <button className="btn btn--primary" onClick={() => { setName(u.name); setEmoji(u.emoji || "🧑‍🎓"); setColor(u.color || "var(--yellow)"); setOpen(true); }}>✏️ EDIT PROFILE</button>

@@ -1,6 +1,7 @@
-import { useState, useReducer } from "react";
+import { useState, useReducer, useEffect } from "react";
 import { sessionEmail, loadState, saveState } from "../lib/store.js";
 import { uid, toast, go } from "../lib/helpers.js";
+import { award, dailyBonus, celebrate } from "../lib/game.js";
 import { Modal } from "../components/Chrome.jsx";
 
 const COLORS = ["var(--yellow)", "var(--pink)", "var(--cyan)", "var(--purple)", "var(--green)"];
@@ -17,6 +18,14 @@ export default function Home() {
   const [emoji, setEmoji] = useState(EMOJIS[0]);
   const [lang, setLang] = useState("english");
 
+  /* roz aane pe: streak update + daily bonus (once/day) */
+  useEffect(() => {
+    const evts = dailyBonus(state);
+    if (evts.length) { saveState(email, state); celebrate(evts); }
+    window.dispatchEvent(new Event("nb-user"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function openModal() {
     setTitle(""); setColor(COLORS[0]); setEmoji(EMOJIS[0]); setLang("english");
     setOpen(true);
@@ -31,7 +40,10 @@ export default function Home() {
       created: Date.now(),
     };
     state.notebooks.unshift(nb);
+    const evts = award(state, "notebook");
     saveState(email, state);
+    celebrate(evts);
+    window.dispatchEvent(new Event("nb-user"));
     force();
     setOpen(false);
     go(`/chat?nb=${nb.id}`);

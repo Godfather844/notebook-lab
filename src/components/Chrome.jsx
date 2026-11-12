@@ -1,5 +1,6 @@
 import { useEffect, useState, useReducer } from "react";
-import { sessionUser, GUEST_EMAIL } from "../lib/store.js";
+import { sessionUser, sessionEmail, loadState, GUEST_EMAIL } from "../lib/store.js";
+import { levelInfo } from "../lib/game.js";
 
 export function ToastHost() {
   const [msg, setMsg] = useState("");
@@ -21,10 +22,17 @@ export function TopBar() {
   }, []);
   const u = sessionUser();
   const chip = u ? `${u.emoji || "🧑"} ${u.name.split(" ")[0].toUpperCase()}` : "🧑 PROFILE";
+  /* live game chip — XP/level/streak (nb-user event pe refresh hota hai) */
+  const st = loadState(sessionEmail());
+  const info = levelInfo(st.game?.xp || 0);
+  const streak = st.game?.streak || 0;
   return (
     <header className="topbar">
       <a id="logoBtn" className="logo sticker-tilt-left" href="#/">📓 NOTEBOOK<span>LAB</span></a>
       <nav className="topnav">
+        <a className="nav-chip nav-chip--green game-chip" href="#/profile" title={`${info.name} · ${info.xp} XP · ${streak}-day streak`}>
+          {streak ? `🔥${streak}` : "🔥"} · L{info.lvl} {info.name}
+        </a>
         <a className="nav-chip nav-chip--yellow" href="#/">HOME</a>
         <a className="nav-chip nav-chip--pink" href="#/about">HOW IT WORKS</a>
         <a className="nav-chip nav-chip--purple" href="#/profile">{chip}</a>

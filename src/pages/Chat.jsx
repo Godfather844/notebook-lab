@@ -2,15 +2,27 @@ import { useEffect, useReducer, useRef, useState } from "react";
 import { TYPES, TYPE_ORDER, geminiChatReply, geminiArtifact } from "../lib/gemini.js";
 import { sessionEmail, loadState, saveState } from "../lib/store.js";
 import { uid, toast, extractPdfText, fileSizeStr, MAX_CTX_CHARS, go } from "../lib/helpers.js";
+import { award, celebrate, confetti } from "../lib/game.js";
 import { Modal } from "../components/Chrome.jsx";
 
+const XP_BONUS = 10; /* perfect-quiz extra */
+
 /* quiz artifact — the only rendered kind (baaki data me safe rehte hain) */
-function QuizArtifact({ a, onRetry, onSave }) {
+function QuizArtifact({ a, onRetry, onSave, onScored }) {
   const [answered, setAnswered] = useState({});
   const [busy, setBusy] = useState(false);
   const qs = a.data.questions;
   const all = Object.keys(answered).length === qs.length;
   const correct = Object.entries(answered).filter(([qi, oi]) => qs[qi] && qs[qi].a === oi).length;
+
+  /* quiz complete hua → XP score (ek hi baar) */
+  useEffect(() => {
+    if (all && !a.__scored) {
+      a.__scored = true;
+      onScored(a, correct, qs.length);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [all]);
 
   return (
     <section className={"artifact" + (busy ? " regen" : "")}>
@@ -149,6 +161,10 @@ export default function Chat({ bookId }) {
         topic: text || file.name.replace(/\.pdf$/i, ""),
       };
       nb.chat.splice(typingIdx, 1, msg);
+      const evts = award(state, "question");
+      saveState(email, state);
+      celebrate(evts);
+      window.dispatchEvent(new Event("nb-user"));
     } catch (err) {
       const typingIdx = nb.chat.findIndex(m => m.typing);
       nb.chat.splice(typingIdx, 1, { role: "bot", error: true, text: err.message || "generation failed" });
@@ -169,7 +185,11 @@ export default function Chat({ bookId }) {
       const art = { id: uid(), kind, title: `${TYPES[kind].label} — ${(m.topic || nb.title).slice(0, 22)}`, data, say, ctx: m.ctx, topic: m.topic };
       nb.chat.splice(typingIdx, 1, { role: "bot", artifact: art });
       toast(`${TYPES[kind].label} ready 🎉`);
-      saveState(email, state); force();
+      const evts = award(state, kind === "quiz" ? "quiz" : "artifact");
+      saveState(email, state);
+      celebrate(evts);
+      window.dispatchEvent(new Event("nb-user"));
+      force();
     } catch (err) {
       const typingIdx = nb.chat.findIndex(x => x.typing);
       nb.chat.splice(typingIdx, 1, { role: "bot", error: true, text: err.message || "generation failed" });
@@ -186,6 +206,17 @@ export default function Chat({ bookId }) {
     a.__v = (a.__v || 0) + 1; // remount → fresh answered state
     saveState(email, state); force();
     toast("naya quiz ready 🎉");
+  }
+
+  /* quiz pura solve hua → XP (+perfect bonus) */
+  function scoreQuiz(a, correct, total) {
+    const perfect = correct === total && total > 0;
+    const evts = award(state, "quizdone", perfect ? XP_BONUS : 0);
+    if (perfect) { confetti(); toast(`PERFECT SCORE! 💥 ${correct}/${total} — bonus XP!`); }
+    saveState(email, state);
+    celebrate(evts);
+    window.dispatchEvent(new Event("nb-user"));
+    force();
   }
 
   function saveArtifact(a) {
@@ -267,7 +298,7 @@ export default function Chat({ bookId }) {
                 <div key={mi} className="msg msg--bot">
                   <div className="bubble"><div className="say">{a.say || "Done ✦"}</div></div>
                   {TYPES[a.kind] && TYPE_ORDER.includes(a.kind) ? (
-                    <QuizArtifact key={a.__v || 0} a={a} onRetry={retryArtifact} onSave={saveArtifact} />
+                    <QuizArtifact key={a.__v || 0} a={a} onRetry={retryArtifact} onSave={saveArtifact} onScored={scoreQuiz} />
                   ) : (
                     <div className="bubble">(ye artifact type abhi render nahi hota — data saved hai 🔒)</div>
                   )}
