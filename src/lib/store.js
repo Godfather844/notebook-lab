@@ -50,6 +50,20 @@ export function saveState(email, state) {
   if (me && email === me.email) queueSync();
 }
 
+/* ---------- buddy (Doodle) memory — alag key, taaki page-saves isse na clobber karein ---------- */
+export function buddyKey(email) { return `nb-buddy::${email}`; }
+export function loadBuddy(email) {
+  if (!email) return { msgs: [] };
+  try { const b = JSON.parse(localStorage.getItem(buddyKey(email))); return (b && Array.isArray(b.msgs)) ? b : { msgs: [] }; }
+  catch { return { msgs: [] }; }
+}
+export function saveBuddy(email, buddy) {
+  if (!email) return;
+  localStorage.setItem(buddyKey(email), JSON.stringify(buddy));
+  if (me && email === me.email) queueSync();
+}
+export function syncSoon() { queueSync(); }
+
 /* ---------- cloud sync (debounced push) ---------- */
 function queueSync() {
   clearTimeout(syncTimer);
@@ -59,8 +73,9 @@ async function pushState() {
   if (!me) return;
   try {
     const state = loadState(me.email);
+    const buddy = loadBuddy(me.email);
     await setDoc(doc(db, "users", me.uid),
-      { notebooks: state.notebooks, game: state.game, updatedAt: serverTimestamp() },
+      { notebooks: state.notebooks, game: state.game, buddy, updatedAt: serverTimestamp() },
       { merge: true });
   } catch { /* offline — localStorage cache me data safe hai, agli baar sync hoga */ }
 }
@@ -87,12 +102,14 @@ async function downloadState(u) {
   let profile = null;
   let cloudNotebooks = null;
   let cloudGame = null;
+  let cloudBuddy = null;
   try {
     const snap = await getDoc(doc(db, "users", u.uid));
     if (snap.exists()) {
       profile = snap.data().profile || null;
       cloudNotebooks = Array.isArray(snap.data().notebooks) ? snap.data().notebooks : null;
       cloudGame = snap.data().game || null;
+      cloudBuddy = (snap.data().buddy && Array.isArray(snap.data().buddy.msgs)) ? snap.data().buddy : null;
     }
   } catch { /* offline: cache chalega */ }
 
@@ -100,6 +117,7 @@ async function downloadState(u) {
     // cloud hi source of truth hai
     localStorage.setItem(dataKey(email), JSON.stringify({ notebooks: cloudNotebooks, game: cloudGame || defaultGame() }));
   }
+  if (cloudBuddy) localStorage.setItem(buddyKey(email), JSON.stringify(cloudBuddy));
   const rec = ensureLocalUser(u, profile);
   // pehli baar login & cloud empty → local/legacy data cloud pe push karo
   if (!cloudNotebooks) {

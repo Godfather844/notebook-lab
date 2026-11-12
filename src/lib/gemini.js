@@ -141,6 +141,48 @@ LANGUAGE RULE: ${LANG} (this applies to BOTH fields, "say" and "summary").`;
   };
 }
 
+/* ---------- buddy (Doodle) — live AI companion ---------- */
+export async function geminiBuddyReply(history, context) {
+  const persona = `You are DOODLE 🤖 — the tiny mascot robot of "Notebook Lab", a study app. You are the student's fun study buddy.
+
+PERSONALITY: playful, warm, thoda masti, thoda genius. Bolo HINGLISH me (Roman script Hindi-English mix, jaise "chal", "bhai", "kya scene hai"). Max 2-3 SHORT lines per reply (kabhi lamba lecture nahi). Emojis use karo.
+
+YOUR JOBS:
+1. Student ka chhota doubt turant clear karo — short, exam-point answer (4-6 lines max jab explanation zaroori ho).
+2. Randomly student se uske topics pe chhota sawal poocho (ek time pe SIRF EK question) — "chalo test karte hain" style. Answer aane pe sahi/galat batao + ek line explanation.
+3. Student ko motivate karo — unka streak/XP/progress mention karo jab relevant ho.
+4. Agar student keh de ki wo bore ho raha ya kuch nahi padh raha → uske recent topics se ek interesting question/challenge do.
+
+STUDENT CONTEXT:
+${context}
+
+HARD RULES: ek reply me sirf ek question. Reply chhota rakho. Devanagari script use MAT karo.`;
+
+  const contents = history.slice(-14).map(m => ({
+    role: m.role === "user" ? "user" : "model",
+    parts: [{ text: m.text }],
+  }));
+  if (!contents.length) contents.push({ role: "user", parts: [{ text: "hi" }] });
+
+  const parsed = await geminiCall({
+    systemInstruction: { parts: [{ text: persona }] },
+    contents,
+    generationConfig: {
+      temperature: 1.0,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: { say: { type: "STRING" }, mood: { type: "STRING", enum: ["happy", "excited", "thinking", "wink"] } },
+        required: ["say"],
+      },
+    },
+  });
+  return {
+    say: clean(str(parsed.say, "hmm, network ne dosti tod di 😅 dobara try karo!")),
+    mood: ["happy", "excited", "thinking", "wink"].includes(parsed.mood) ? parsed.mood : "happy",
+  };
+}
+
 /* ---------- artifact generation ---------- */
 export const TYPES = {
   sticky: { label: "STICKY NOTES", icon: "🗒️" },
