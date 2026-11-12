@@ -65,7 +65,7 @@ export default function Profile() {
             <div className="stat" style={{ "--c": "var(--green)" }}><b>🔥 {g.streak || 0}</b><span>DAY STREAK</span></div>
           </div>
 
-          {/* XP / level progress */}
+          {/* XP / level progress + streak */}
           <div className="xp-card">
             <div className="xp-top">
               <span className="xp-level">L{info.lvl} {info.name}</span>
@@ -75,6 +75,13 @@ export default function Profile() {
             <p className="xp-next">
               {info.next ? `${info.toNext} XP aur → ${info.next}` : "MAX LEVEL — tum professor ho 🧑‍🏫"}
             </p>
+            <div className={"streak-row" + (g.streak ? " lit" : "")}>
+              <span className="streak-flame">🔥</span>
+              <div className="streak-txt">
+                <b>{g.streak || 0} DAY STREAK</b>
+                <small>{g.streak ? "kal bhi aana, warna streak reset! 💀" : "aaj shuru karo — streak 1 se banti hai"}</small>
+              </div>
+            </div>
           </div>
 
           {/* badges shelf */}

@@ -33,8 +33,6 @@ export function TopBar() {
         <a className="nav-chip nav-chip--green game-chip" href="#/profile" title={`${info.name} · ${info.xp} XP · ${streak}-day streak`}>
           {streak ? `🔥${streak}` : "🔥"} · L{info.lvl} {info.name}
         </a>
-        <a className="nav-chip nav-chip--yellow" href="#/">HOME</a>
-        <a className="nav-chip nav-chip--pink" href="#/about">HOW IT WORKS</a>
         <a className="nav-chip nav-chip--purple" href="#/profile">{chip}</a>
       </nav>
     </header>
