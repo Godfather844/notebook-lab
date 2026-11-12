@@ -1,6 +1,6 @@
-# 📓 NOTEBOOK LAB (React)
+# 📓 NOTEBOOK LAB
 
-Neobrutalist, NotebookLM-style study app — React (Vite) multi-page build.
+Neobrutalist, NotebookLM-style study app — Vite multi-page web app.
 Ask questions, attach PDFs, get exam-ready answers and auto-generated quizzes (with retry), plus a real MP4 video note renderer.
 
 ## Pages (hash routing)

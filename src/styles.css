@@ -833,11 +833,11 @@ body.auth-mode main:not(#authScreen) { display: none !important; }
 
 .hidden { display: none !important; }
 
-/* ===== react-app additions ===== */
+/* ===== app additions ===== */
 a.nav-chip { text-decoration: none; color: var(--black); display: inline-block; }
 a.logo { text-decoration: none; color: var(--black); display: inline-block; font-size: 1.2rem; }
 
-/* ===== react-app additions (2) ===== */
+/* ===== app additions (2) ===== */
 .modal { position: relative; }
 .modal-x {
   position: absolute; top: 10px; right: 10px;
