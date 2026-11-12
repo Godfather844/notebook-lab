@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {ToastHost, TopBar, Modal} from "./components/Chrome.jsx";
-import { sessionUser } from "./lib/store.js";
+import { sessionUser, subscribeAuth } from "./lib/store.js";
 import { go } from "./lib/helpers.js";
 
 export { go };
@@ -27,9 +27,20 @@ function Redirect({ to }) {
 
 export default function App() {
   const hash = useHash();
+  const [authReady, setAuthReady] = useState(false);
+  useEffect(() => subscribeAuth(() => setAuthReady(true)), []);
   const route = (hash.split("?")[0] || "#/").replace(/^#\/?/, "");
   const query = new URLSearchParams(hash.split("?")[1] || "");
-  const logged = !!sessionUser();
+  const logged = authReady && !!sessionUser();
+
+  if (!authReady) {
+    return (
+      <>
+        <ToastHost />
+        <div className="boot-loading">📓 NOTEBOOK LAB<br /><span>cloud se utha raha hoon… ☁️</span></div>
+      </>
+    );
+  }
 
   let page = null;
   if (route === "login") {

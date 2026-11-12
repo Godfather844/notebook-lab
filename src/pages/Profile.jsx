@@ -1,5 +1,5 @@
 import { useState, useReducer } from "react";
-import { sessionUser, sessionEmail, GUEST_EMAIL, getUsers, saveUsers, loadState, logoutSession } from "../lib/store.js";
+import { sessionUser, sessionEmail, loadState, updateMeProfile, fbLogout } from "../lib/store.js";
 import { toast, go } from "../lib/helpers.js";
 import { Modal } from "../components/Chrome.jsx";
 
@@ -18,27 +18,22 @@ export default function Profile() {
 
   if (!u) return null;
 
+  const isGuest = (u?.email || "").startsWith("anon-");
   const days = Math.max(1, Math.ceil((Date.now() - (u.joined || Date.now())) / 86400000));
   const nbs = state.notebooks || [];
   const chats = nbs.reduce((a, nb) => a + nb.chat.filter(m => m.role === "user").length, 0);
   const quizzes = nbs.reduce((a, nb) => a + nb.chat.filter(m => m.artifact && m.artifact.kind === "quiz").length, 0);
 
-  function save() {
-    const users = getUsers();
-    const me = users.find(x => x.email === u.email);
-    if (!me) return;
-    if (name.trim()) me.name = name.trim();
-    me.emoji = emoji;
-    me.color = color;
-    saveUsers(users);
+  async function save() {
+    await updateMeProfile({ name: name.trim(), emoji, color });
     window.dispatchEvent(new Event("nb-user"));
     setOpen(false);
     force();
-    toast("profile updated ✦");
+    toast("profile updated ✦ (cloud me save ☁️)");
   }
 
-  function logout() {
-    logoutSession();
+  async function logout() {
+    await fbLogout();
     window.dispatchEvent(new Event("nb-user"));
     go("/login");
     toast("logged out 👋 see you soon!");
@@ -52,8 +47,8 @@ export default function Profile() {
             <span className="p-avatar">{u.emoji || "🧑‍🎓"}</span>
             <div className="p-id">
               <h2 className="p-name">{u.name}</h2>
-              <p className="p-mail">{u.email === GUEST_EMAIL ? "guest session (data sirf is browser me)" : u.email}</p>
-              <span className="chip chip--s">{u.email === GUEST_EMAIL ? "GUEST MODE" : `MEMBER SINCE ${new Date(u.joined).toLocaleDateString()}`}</span>
+              <p className="p-mail">{isGuest ? "guest session (data cloud me, is device se bhi)" : u.email}</p>
+              <span className="chip chip--s">{isGuest ? "GUEST MODE" : `MEMBER SINCE ${new Date(u.joined).toLocaleDateString()}`}</span>
             </div>
           </div>
           <div className="p-stats">
