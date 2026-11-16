@@ -3,6 +3,7 @@ import { TYPES, TYPE_ORDER, geminiChatReply, geminiArtifact } from "../lib/gemin
 import { sessionEmail, loadState, saveState } from "../lib/store.js";
 import { uid, toast, extractPdfText, fileSizeStr, MAX_CTX_CHARS, go } from "../lib/helpers.js";
 import { award, celebrate, confetti } from "../lib/game.js";
+import { bumpChatCount, runVideoAd } from "../lib/ads.js";
 import { Modal } from "../components/Chrome.jsx";
 
 const XP_BONUS = 10; /* perfect-quiz extra */
@@ -165,6 +166,8 @@ export default function Chat({ bookId }) {
       saveState(email, state);
       celebrate(evts);
       window.dispatchEvent(new Event("nb-user"));
+      /* har 3rd question ke baad video ad break (chat screen pe hi) */
+      if (bumpChatCount()) await runVideoAd();
     } catch (err) {
       const typingIdx = nb.chat.findIndex(m => m.typing);
       nb.chat.splice(typingIdx, 1, { role: "bot", error: true, text: err.message || "generation failed" });
