@@ -117,7 +117,15 @@ async function downloadState(u) {
     // cloud hi source of truth hai
     localStorage.setItem(dataKey(email), JSON.stringify({ notebooks: cloudNotebooks, game: cloudGame || defaultGame() }));
   }
-  if (cloudBuddy) localStorage.setItem(buddyKey(email), JSON.stringify(cloudBuddy));
+  if (cloudBuddy) {
+    /* memory fix: jo zyada lambi history hai wahi jeete —
+       stale cloud (purane sync ka) fresh local baatcheet ko overwrite na kare */
+    let local = null;
+    try { local = JSON.parse(localStorage.getItem(buddyKey(email))); } catch { /* */ }
+    const cl = (cloudBuddy.msgs || []).length;
+    const ll = (local && Array.isArray(local.msgs)) ? local.msgs.length : -1;
+    if (cl >= ll) localStorage.setItem(buddyKey(email), JSON.stringify(cloudBuddy));
+  }
   const rec = ensureLocalUser(u, profile);
   // pehli baar login & cloud empty → local/legacy data cloud pe push karo
   if (!cloudNotebooks) {

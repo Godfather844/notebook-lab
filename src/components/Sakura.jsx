@@ -62,7 +62,6 @@ function SakuraFace({ thinking }) {
 }
 
 export default function Sakura() {
-  const email = sessionEmail();
   const [phase, setPhase] = useState("idle"); // idle | listen | think | speak
   const [caption, setCaption] = useState(""); // live voice captions (typing feature nahi — sirf mic feedback)
   const [micErr, setMicErr] = useState(false);
@@ -71,6 +70,8 @@ export default function Sakura() {
   const recRef = useRef(null);
   const activatingRef = useRef(false); // wake double-fire guard
   const lastWakeRef = useRef(0); // heartbeat — recognition zinda hai?
+  const silenceRef = useRef(0);     // baat karte waqt kitni baar chup hua (retry counter)
+  const listenStampRef = useRef(0); // listen rec ka heartbeat (watchdog)
   phaseRef.current = phase;
 
   useEffect(() => {
@@ -95,7 +96,8 @@ export default function Sakura() {
       if (done) return;
       done = true;
       setCaption("");
-      next?.();
+      /* echo guard: apni hi aawaaz mic me na aaye — thoda ruk ke sunna shuru */
+      setTimeout(() => next?.(), 350);
     };
     /* safety: onEnd kabhi na chale (blocked TTS) to loop hang na ho */
     const guard = setTimeout(finish, Math.min(35000, 4000 + text.length * 95));
@@ -144,54 +146,81 @@ export default function Sakura() {
   }
 
   /* ---------- activate: "hey sakura" mila ---------- */
+  /* purani baatcheet se last topic — memory proof greeting ke liye */
+  function lastTopic() {
+    try {
+      const msgs = (loadBuddy(sessionEmail()).msgs || []).filter(m => m.text);
+      const lastBot = [...msgs].reverse().find(m => m.role === "bot");
+      if (!lastBot) return "";
+      return lastBot.text.replace(/[🌸💗✦*#]/g, "").split(/[.?!\n]/)[0].trim().split(/\s+/).slice(0, 7).join(" ");
+    } catch { return ""; }
+  }
+
   function activate(wakeText) {
     stopRec();
+    silenceRef.current = 0;
     const said = wakeText.replace(WAKE, "").replace(/\b(hey|ok|are|hello|hi)\b/gi, "").trim();
-    const greet = said
-      ? `Haan! 🌸 "${said.slice(0, 60)}" — main sun rahi hoon, bolo!`
-      : `Hai main yahin hoon! 🌸 bolo, kya poochna hai?`;
+    const topic = lastTopic();
+    const greet = topic
+      ? `Wapas aa gaye! 🌸 pichhli baar hum ${topic} pe the — wahi se chalu karein?`
+      : said
+        ? `Haan! 🌸 "${said.slice(0, 60)}" — main sun rahi hoon, bolo!`
+        : `Hai main yahin hoon! 🌸 bolo, kya poochna hai?`;
     say(greet, () => userListen());
   }
 
-  /* ---------- listen: student bol raha hai (ek utterance) ---------- */
-  function userListen() {
-    if (!SR || !aliveRef.current) { deactivate(); return; }
+  /* ---------- listen: student bol raha hai (ek utterance)
+     BAAT KE BEECH kabhi chipak se wake mode mat jao —
+     chup pe dobara sunna (2 retry), error pe recRef saaf karke recover ---------- */
+  function userListen(quiet) {
+    if (!SR || !aliveRef.current) return;
+    if (recRef.current) return;
     setP("listen");
-    setCaption("");
-    stopRec();
+    if (!quiet) setCaption("");
+    let final = "", interim = "", settled = false;
+    const settle = (err) => {
+      if (settled) return; // onend + onerror dono aate hain — sirf pehla jeete
+      settled = true;
+      recRef.current = null; /* BUG FIX: iske bina wake loop kabhi restart nahi hota tha */
+      if (!aliveRef.current) return;
+      const t = (final || interim).trim();
+      setCaption("");
+      if (err === "not-allowed" || err === "service-not-allowed") { setMicErr("blocked"); setP("idle"); return; }
+      if (EXIT.test(t)) { deactivate(); return; } // "bye sakura" → alvida
+      if (!t) {                                   // chup → baat se mat toot, dobara suno
+        const tries = ++silenceRef.current;
+        if (tries <= 2) {
+          setCaption("👂 phir se bolo…");
+          setTimeout(() => userListen(true), 400);
+        } else {
+          silenceRef.current = 0;
+          deactivate();                           // 3 chup ke baad alvida bolke wake mode
+        }
+        return;
+      }
+      silenceRef.current = 0;
+      handleUser(t);
+    };
     try {
       const r = new SR();
       recRef.current = r;
+      listenStampRef.current = Date.now();
       r.lang = "en-IN";
       r.continuous = false;
       r.interimResults = true;
-      let final = "";
       r.onresult = (e) => {
-        let interim = "";
+        listenStampRef.current = Date.now();
+        interim = "";
         for (const res of e.results) {
           if (res.isFinal) final += res[0].transcript;
           else interim += res[0].transcript;
         }
         setCaption("👂 " + (final || interim));
       };
-      r.onend = () => {
-        const t = final.trim();
-        setCaption("");
-        if (EXIT.test(t)) { deactivate(); return; }  // "bye sakura" → alvida bolo
-        if (!t) {                                     // silence → chupke wapas wake mode
-          setP("idle");
-          wakeListen();
-          return;
-        }
-        handleUser(t);
-      };
-      r.onerror = () => {                             // no-speech etc → wapas wake mode
-        setCaption("");
-        setP("idle");
-        wakeListen();
-      };
+      r.onend = () => settle();
+      r.onerror = (e) => settle(e?.error || "error");
       r.start();
-    } catch { deactivate(); }
+    } catch { recRef.current = null; settle("error"); }
   }
 
   function deactivate() {
@@ -206,20 +235,26 @@ export default function Sakura() {
   /* ---------- brain: doubt answer + question / evaluation ---------- */
   async function handleUser(t) {
     setP("think");
-    const next = [...loadBuddy(email).msgs, { role: "user", text: t }];
-    saveBuddy(email, { msgs: next.slice(-40) });
-    try {
-      const state = loadState(email);
-      const { say: reply } = await geminiBuddyReply(next.slice(-14), contextFor(state));
-      const all = [...loadBuddy(email).msgs, { role: "bot", text: reply }];
-      saveBuddy(email, { msgs: all.slice(-40) });
-      say(reply, () => userListen()); // jawab ke baad phir se suno (loop zinda)
-    } catch {
-      say("network ne dosti tod di 😅 thodi der baad 'Hey Sakura' bolna!", () => {
-        setP("idle");
-        wakeListen();
-      });
+    const em = sessionEmail();
+    if (!em) { say("pehle login kar lo senpai! 🌸", () => { setP("idle"); wakeListen(); }); return; }
+    const next = [...loadBuddy(em).msgs, { role: "user", text: t }];
+    saveBuddy(em, { msgs: next.slice(-40), lastActive: Date.now() });
+    /* Gemini 2 try — chhota network glitch baat na tode */
+    let reply = "";
+    for (let i = 0; i < 2 && !reply; i++) {
+      try {
+        const state = loadState(em);
+        reply = (await geminiBuddyReply(next.slice(-14), contextFor(state))).say;
+      } catch { if (i === 0) await new Promise(r => setTimeout(r, 900)); }
     }
+    if (!reply) {
+      /* fail bhi ho to conversation me hi raho — wake mode mat jao */
+      say("network ghabra gaya 😅 apna sawal dobara bolo!", () => userListen());
+      return;
+    }
+    const all = [...loadBuddy(em).msgs, { role: "bot", text: reply }];
+    saveBuddy(em, { msgs: all.slice(-40), lastActive: Date.now() });
+    say(reply, () => userListen()); // jawab ke baad phir se suno (loop zinda)
   }
 
   /* boot: wake listener TURANT start (gesture gate hataya) + TTS unlock + watchdog */
@@ -245,6 +280,13 @@ export default function Sakura() {
         stopRec();
         recRef.current = null;
         wakeListen();
+        return;
+      }
+      /* listen phase me bhi rec murda ho sakti hai — dobara sunna shuru */
+      if (phaseRef.current === "listen" && recRef.current && Date.now() - listenStampRef.current > 12000) {
+        stopRec();
+        recRef.current = null;
+        userListen(true);
       }
     }, 3000);
     return () => {
