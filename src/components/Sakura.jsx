@@ -70,6 +70,7 @@ export default function Sakura() {
   const aliveRef = useRef(true);
   const recRef = useRef(null);
   const activatingRef = useRef(false); // wake double-fire guard
+  const lastWakeRef = useRef(0); // heartbeat — recognition zinda hai?
   phaseRef.current = phase;
 
   useEffect(() => {
@@ -101,18 +102,21 @@ export default function Sakura() {
     speakVoice(text, { onEnd: () => { clearTimeout(guard); finish(); } });
   }
 
-  /* ---------- wake-word loop: "hey sakura" ka intezaar ---------- */
+  /* ---------- wake-word loop: "hey sakura" ka intezaar
+     Chrome continuous rec ko ~60s baad kill kar deta hai →
+     isliye SHORT cycles (continuous=false) + self-restart + watchdog ---------- */
   function wakeListen() {
     if (!SR || !aliveRef.current) { if (!SR) setMicErr(true); return; }
     if (recRef.current) return;
-    stopRec();
+    lastWakeRef.current = Date.now();
     try {
       const r = new SR();
       recRef.current = r;
       r.lang = "en-IN";
-      r.continuous = true;
+      r.continuous = false; /* short cycle — Chrome kill nahi karega */
       r.interimResults = true;
       r.onresult = (e) => {
+        lastWakeRef.current = Date.now();
         if (phaseRef.current !== "idle" || activatingRef.current) return;
         let text = "";
         for (const res of e.results) text += res[0].transcript;
@@ -125,16 +129,15 @@ export default function Sakura() {
         }
       };
       r.onend = () => {
-        // Chrome khud band kar deta hai silence pe → wake loop restart
         recRef.current = null;
+        lastWakeRef.current = Date.now();
         if (aliveRef.current && phaseRef.current === "idle" && !activatingRef.current) {
-          setTimeout(() => { if (phaseRef.current === "idle" && !recRef.current) wakeListen(); }, 350);
+          setTimeout(() => { if (phaseRef.current === "idle" && !recRef.current) wakeListen(); }, 300);
         }
       };
-      r.onerror = (e) => {
-        const err = e?.error || "";
-        if (err === "not-allowed" || err === "service-not-allowed") { setMicErr("blocked"); recRef.current = null; }
-        /* aborted / no-speech / network → ignore, loop onend se restart hota hai */
+      r.onerror = () => {
+        /* no-speech / network / aborted → onend bhi fire hota hai, restart ho jayega */
+        recRef.current = null;
       };
       r.start();
     } catch { setMicErr(true); recRef.current = null; }
@@ -174,11 +177,19 @@ export default function Sakura() {
       r.onend = () => {
         const t = final.trim();
         setCaption("");
-        if (!t) { deactivate(); return; }          // silence → so gayi
-        if (EXIT.test(t)) { deactivate(); return; } // "bye sakura"
+        if (EXIT.test(t)) { deactivate(); return; }  // "bye sakura" → alvida bolo
+        if (!t) {                                     // silence → chupke wapas wake mode
+          setP("idle");
+          wakeListen();
+          return;
+        }
         handleUser(t);
       };
-      r.onerror = () => { setCaption(""); deactivate(); };
+      r.onerror = () => {                             // no-speech etc → wapas wake mode
+        setCaption("");
+        setP("idle");
+        wakeListen();
+      };
       r.start();
     } catch { deactivate(); }
   }
@@ -227,9 +238,14 @@ export default function Sakura() {
     };
     window.addEventListener("pointerdown", prime, { once: true });
     window.addEventListener("keydown", prime, { once: true });
-    /* watchdog: wake rec silently mar gayi to restart */
+    /* watchdog: rec chupchap mar gayi (koi onend nahi) → restart */
     const iv = setInterval(() => {
-      if (aliveRef.current && phaseRef.current === "idle" && !recRef.current && SR) wakeListen();
+      if (!aliveRef.current || !SR) return;
+      if (phaseRef.current === "idle" && (!recRef.current || Date.now() - lastWakeRef.current > 20000)) {
+        stopRec();
+        recRef.current = null;
+        wakeListen();
+      }
     }, 3000);
     return () => {
       aliveRef.current = false;
