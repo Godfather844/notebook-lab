@@ -1,6 +1,5 @@
-/* Sakura voice engine — mic (Web Speech) + voice playback (Gemini TTS, browser fallback) */
-import { makeAudio } from "./tts.js";
-
+/* Sakura voice engine — mic (Web Speech) + voice playback (browser TTS, instant)
+   NOTE: Gemini TTS (tts.js) latency-heavy hai — voice loop me browser voice use hoti hai */
 export const SR = typeof window !== "undefined"
   ? (window.SpeechRecognition || window.webkitSpeechRecognition || null)
   : null;
@@ -29,19 +28,9 @@ function speakBrowserWithEnd(text, onEnd) {
   } catch { onEnd?.(); }
 }
 
-/* text → voice; onEnd = bolna khatam (hands-free loop isse resume hota hai) */
+/* text → voice; onEnd = bolna khatam (hands-free loop isse resume hota hai)
+   SPEED FIRST: browser ki native voice (zero network wait) — Gemini TTS 3-5s late karta hai */
 export async function speakVoice(text, { onEnd } = {}) {
-  if (!("speechSynthesis" in window) && !("Audio" in window)) { onEnd?.(); return; }
-  try {
-    const a = await makeAudio(text);
-    if (a.kind === "file") {
-      const au = new Audio(a.url);
-      au.onended = () => onEnd?.();
-      au.onerror = () => speakBrowserWithEnd(text, onEnd);
-      await au.play().catch(() => speakBrowserWithEnd(text, onEnd));
-      return;
-    }
-  } catch { /* browser voice fallback */ }
   speakBrowserWithEnd(text, onEnd);
 }
 
