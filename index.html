@@ -8,9 +8,19 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Archivo+Black&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- Monetag SDK — zone 12275698 (video ad break, har 3rd chat pe) -->
+  <script src="https://3nbf4.com/act/files/tag.min.js?z=12275698" data-cfasync="false" async></script>
 </head>
 <body>
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
+  <script>
+    /* Monetag service worker (root scope) — SDK ke ad delivery ke liye */
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch(() => { /* offline/dev — ignore */ });
+      });
+    }
+  </script>
 </body>
 </html>

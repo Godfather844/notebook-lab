@@ -12,7 +12,7 @@
    NOTE: Jab tak MONETAG_ZONE empty hai → demo overlay dikhega (test mode) —
    UX preview ke liye, koi real ad nahi. Zone daalte hi REAL video ad chalega. */
 
-export const MONETAG_ZONE = ""; /* ← yahan zone ID daalo (e.g. "1234567") */
+export const MONETAG_ZONE = "12275698"; /* Monetag dashboard se mila — LIVE */
 
 const EVERY_N = 3; /* har 3rd question ke baad ad */
 let count = 0;
@@ -25,14 +25,27 @@ export function bumpChatCount() {
 
 /* video ad chalao — promise complete hone pe chat wapas free */
 export async function runVideoAd() {
-  const showFn = typeof window !== "undefined" && MONETAG_ZONE
-    ? window["show_" + MONETAG_ZONE]
-    : null;
+  /* SDK async load hota hai — show_12275698 ke aane tak max ~3s ruko */
+  const showFn = await waitShowFn();
   if (typeof showFn === "function") {
-    /* REAL ad — Monetag SDK khud full-screen video + close button handle karta hai */
+    /* REAL ad — Monetag SDK khud full-screen video + close handle karta hai */
     try { showFn(); return; } catch { /* SDK fail → demo pe gir jao */ }
   }
   await demoAd();
+}
+
+function waitShowFn() {
+  const name = "show_" + MONETAG_ZONE;
+  return new Promise((resolve) => {
+    const t0 = Date.now();
+    const iv = setInterval(() => {
+      const f = typeof window !== "undefined" ? window[name] : null;
+      if (typeof f === "function" || Date.now() - t0 > 3000) {
+        clearInterval(iv);
+        resolve(f);
+      }
+    }, 150);
+  });
 }
 
 /* demo overlay (test mode) — jab zone connect nahi hai */
