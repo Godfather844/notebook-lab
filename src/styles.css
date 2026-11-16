@@ -1086,108 +1086,128 @@ html {
   .xp-card { padding: 12px; }
 }
 
-/* ============ DOODLE — AI BUDDY CHARACTER ============ */
-.buddy {
+/* ============ SAKURA — ANIME VOICE ASSISTANT ============ */
+.sakura {
   position: fixed;
   bottom: 18px;
   right: 16px;
   z-index: 55;
-  width: 62px;
-  height: 70px;
+  width: 92px;
+  height: 104px;
   background: none;
   border: none;
   cursor: pointer;
+  padding: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   animation: buddyBob 2.6s ease-in-out infinite;
-  padding: 0;
 }
 @keyframes buddyBob {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+  50% { transform: translateY(-6px); }
 }
-.buddy-antenna {
-  width: 4px; height: 10px;
-  background: var(--black);
-  position: relative;
-  display: block;
+.sakura-svg { width: 92px; height: 92px; filter: drop-shadow(4px 4px 0 rgba(17,17,17,.25)); }
+.sakura-tag {
+  font-family: "Archivo Black", sans-serif;
+  font-size: .52rem;
+  letter-spacing: .6px;
+  background: var(--yellow);
+  border: 2px solid var(--black);
+  box-shadow: 2px 2px 0 var(--black);
+  padding: 2px 7px;
+  margin-top: -4px;
+  transform: rotate(-2deg);
+  z-index: 2;
 }
-.buddy-antenna::after {
-  content: "";
+.sakura-ring {
   position: absolute;
-  top: -7px; left: -3px;
-  width: 10px; height: 10px;
+  inset: -6px -8px auto auto;
+  width: 108px;
+  height: 108px;
   border-radius: 50%;
-  background: var(--pink);
-  border: 3px solid var(--black);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .2s;
 }
-.buddy-screen {
-  width: 54px; height: 44px;
-  background: var(--white);
+.sakura.is-listen .sakura-ring {
+  opacity: 1;
+  border: 4px dashed var(--cyan);
+  animation: ringSpin 3s linear infinite;
+}
+.sakura.is-speak .sakura-ring {
+  opacity: 1;
+  border: 4px solid var(--pink);
+  animation: ringPulse 1s ease-in-out infinite;
+}
+.sakura.is-think .sakura-ring {
+  opacity: 1;
+  border: 4px dotted var(--purple);
+  animation: ringSpin 5s linear infinite reverse;
+}
+@keyframes ringSpin { to { transform: rotate(360deg); } }
+@keyframes ringPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.07); }
+}
+.sakura-live {
+  position: absolute;
+  top: -2px;
+  left: -6px;
+  font-family: "Archivo Black", sans-serif;
+  font-size: .56rem;
+  color: #fff;
+  background: #e11;
+  border: 2px solid var(--black);
+  padding: 2px 6px;
+  border-radius: 8px;
+  animation: buddyBob 1s ease-in-out infinite;
+}
+/* anime face animations */
+.sakura .eye { transform-origin: center 53px; animation: eyeBlink 4.2s infinite; }
+.sakura .tail-l { transform-origin: 24px 44px; animation: tailSway 3.2s ease-in-out infinite; }
+.sakura .tail-r { transform-origin: 76px 44px; animation: tailSwayR 3.2s ease-in-out infinite; }
+@keyframes tailSway { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(4deg); } }
+@keyframes tailSwayR { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-4deg); } }
+.sakura .mouth-open { opacity: 0; }
+.sakura.is-speak .mouth-open { opacity: 1; animation: mouthTalk .28s ease-in-out infinite alternate; }
+.sakura.is-speak .mouth-closed { opacity: 0; }
+@keyframes mouthTalk {
+  from { transform: scaleY(.55); }
+  to { transform: scaleY(1.15); }
+}
+.sakura.is-speak { animation-duration: 1s; }
+.sakura.is-listen { animation-duration: 1.6s; }
+
+/* mic + toggles */
+.mic-btn {
+  width: 44px;
   border: 3px solid var(--black);
   box-shadow: 3px 3px 0 var(--black);
-  border-radius: 10px 10px 4px 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  position: relative;
+  background: var(--pink);
+  cursor: pointer;
+  font-size: 1.15rem;
+  flex-shrink: 0;
 }
-.buddy-feet { display: flex; gap: 8px; }
-.buddy-feet i {
-  width: 10px; height: 8px;
-  background: var(--black);
-  border-radius: 2px 2px 0 0;
-}
-.eye {
-  width: 9px; height: 11px;
-  background: var(--black);
-  border-radius: 3px;
-  animation: eyeBlink 4.2s infinite;
-}
-.eye-r { animation-delay: .08s; }
-@keyframes eyeBlink {
-  0%, 92%, 100% { transform: scaleY(1); }
-  95% { transform: scaleY(.12); }
-}
-.mouth {
-  width: 14px; height: 7px;
-  border: 3px solid var(--black);
-  border-top: none;
-  border-left: none;
-  border-right: none;
-  border-radius: 0 0 10px 10px;
-  position: absolute;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: transparent;
-}
-/* moods */
-.buddy.mood-wink .eye-r { animation: winkEye .9s ease infinite; }
-@keyframes winkEye { 0%, 100% { transform: scaleY(1); } 40%, 70% { transform: scaleY(.12); } }
-.buddy.mood-excited { animation-duration: .9s; }
-.buddy.mood-excited .buddy-screen { background: var(--yellow); }
-.buddy.busy .buddy-screen { animation: buddyThink .5s ease-in-out infinite alternate; }
-@keyframes buddyThink {
-  from { transform: rotate(-2deg); }
-  to { transform: rotate(2deg); }
-}
-.buddy-zzz {
-  position: absolute;
-  top: -6px; right: -8px;
-  font-family: "Archivo Black", sans-serif;
-  font-size: .8rem;
+.mic-btn.on {
   background: var(--cyan);
-  border: 3px solid var(--black);
-  border-radius: 50%;
-  width: 20px; height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: buddyBob 1.6s ease-in-out infinite;
+  animation: micPulse .8s ease-in-out infinite;
 }
+.mic-btn:disabled { opacity: .45; cursor: not-allowed; }
+@keyframes micPulse {
+  0%, 100% { box-shadow: 3px 3px 0 var(--black), 0 0 0 0 #5EDFFF; }
+  50% { box-shadow: 3px 3px 0 var(--black), 0 0 0 7px rgba(94,223,255,.35); }
+}
+.tgl {
+  border: 3px solid var(--black);
+  box-shadow: 2px 2px 0 var(--black);
+  background: var(--white);
+  cursor: pointer;
+  font-size: .95rem;
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+.tgl.on { background: var(--green); }
 
 /* proactive nudge bubble */
 .buddy-bubble {
@@ -1303,16 +1323,15 @@ html {
 .buddy-send { padding: 8px 12px; }
 
 /* chat screen pe composer ke upar utha do */
-body:has(.screen--chat) .buddy { bottom: 96px; }
-body:has(.screen--chat) .buddy-panel { bottom: 178px; height: min(400px, 56dvh); }
-body:has(.screen--chat) .buddy-bubble { bottom: 178px; }
+body:has(.screen--chat) .sakura { bottom: 96px; }
+body:has(.screen--chat) .buddy-panel { bottom: 200px; height: min(400px, 52dvh); }
+body:has(.screen--chat) .buddy-bubble { bottom: 200px; }
 
 @media (max-width: 640px) {
-  .buddy { width: 52px; height: 60px; right: 10px; bottom: 14px; }
-  .buddy-screen { width: 46px; height: 38px; }
-  .buddy-bubble { bottom: 88px; max-width: 170px; font-size: .74rem; }
-  .buddy-panel { width: calc(100vw - 20px); right: 10px; bottom: 88px; height: min(400px, 58dvh); }
-  body:has(.screen--chat) .buddy { bottom: 88px; }
-  body:has(.screen--chat) .buddy-panel { bottom: 156px; }
-  body:has(.screen--chat) .buddy-bubble { bottom: 156px; }
+  .sakura { right: 8px; bottom: 10px; transform: scale(.82); transform-origin: bottom right; }
+  .buddy-bubble { bottom: 96px; max-width: 170px; font-size: .74rem; }
+  .buddy-panel { width: calc(100vw - 20px); right: 10px; bottom: 100px; height: min(400px, 58dvh); }
+  body:has(.screen--chat) .sakura { bottom: 88px; }
+  body:has(.screen--chat) .buddy-panel { bottom: 180px; }
+  body:has(.screen--chat) .buddy-bubble { bottom: 180px; }
 }

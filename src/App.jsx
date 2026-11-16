@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {ToastHost, TopBar, Modal} from "./components/Chrome.jsx";
 import { sessionUser, subscribeAuth } from "./lib/store.js";
 import { go } from "./lib/helpers.js";
-import Buddy from "./components/Buddy.jsx";
+import Sakura from "./components/Sakura.jsx";
 
 export { go };
 import Login from "./pages/Login.jsx";
@@ -61,7 +61,7 @@ export default function App() {
       <ToastHost />
       <TopBar />
       {page}
-      {logged ? <Buddy /> : null}
+      {logged ? <Sakura /> : null}
     </>
   );
 }
