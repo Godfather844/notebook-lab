@@ -69,6 +69,7 @@ export default function Sakura() {
   const phaseRef = useRef("idle");
   const aliveRef = useRef(true);
   const recRef = useRef(null);
+  const activatingRef = useRef(false); // wake double-fire guard
   phaseRef.current = phase;
 
   useEffect(() => {
@@ -88,17 +89,22 @@ export default function Sakura() {
   function say(text, next) {
     setCaption(text);
     setP("speak");
-    speakVoice(text, {
-      onEnd: () => {
-        setCaption("");
-        next?.();
-      },
-    });
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      setCaption("");
+      next?.();
+    };
+    /* safety: onEnd kabhi na chale (blocked TTS) to loop hang na ho */
+    const guard = setTimeout(finish, Math.min(35000, 4000 + text.length * 95));
+    speakVoice(text, { onEnd: () => { clearTimeout(guard); finish(); } });
   }
 
   /* ---------- wake-word loop: "hey sakura" ka intezaar ---------- */
   function wakeListen() {
-    if (!SR || !aliveRef.current) return;
+    if (!SR || !aliveRef.current) { if (!SR) setMicErr(true); return; }
+    if (recRef.current) return;
     stopRec();
     try {
       const r = new SR();
@@ -107,18 +113,31 @@ export default function Sakura() {
       r.continuous = true;
       r.interimResults = true;
       r.onresult = (e) => {
-        if (phaseRef.current !== "idle") return;
+        if (phaseRef.current !== "idle" || activatingRef.current) return;
         let text = "";
         for (const res of e.results) text += res[0].transcript;
-        if (WAKE.test(text)) activate(text);
+        if (WAKE.test(text)) {
+          activatingRef.current = true; // double-fire guard
+          stopRec();
+          recRef.current = null;
+          activate(text);
+          setTimeout(() => { activatingRef.current = false; }, 1500);
+        }
       };
       r.onend = () => {
         // Chrome khud band kar deta hai silence pe → wake loop restart
-        if (aliveRef.current && phaseRef.current === "idle") setTimeout(() => wakeListen(), 400);
+        recRef.current = null;
+        if (aliveRef.current && phaseRef.current === "idle" && !activatingRef.current) {
+          setTimeout(() => { if (phaseRef.current === "idle" && !recRef.current) wakeListen(); }, 350);
+        }
       };
-      r.onerror = () => setMicErr(true);
+      r.onerror = (e) => {
+        const err = e?.error || "";
+        if (err === "not-allowed" || err === "service-not-allowed") { setMicErr("blocked"); recRef.current = null; }
+        /* aborted / no-speech / network → ignore, loop onend se restart hota hai */
+      };
       r.start();
-    } catch { setMicErr(true); }
+    } catch { setMicErr(true); recRef.current = null; }
   }
 
   /* ---------- activate: "hey sakura" mila ---------- */
@@ -192,14 +211,29 @@ export default function Sakura() {
     }
   }
 
-  /* boot: mic permission milte hi wake mode */
+  /* boot: wake listener TURANT start (gesture gate hataya) + TTS unlock + watchdog */
   useEffect(() => {
     aliveRef.current = true;
-    const first = () => { wakeListen(); window.removeEventListener("pointerdown", first); window.removeEventListener("keydown", first); };
-    window.addEventListener("pointerdown", first, { once: true });
-    window.addEventListener("keydown", first, { once: true });
+    if (SR) wakeListen(); else setMicErr("unsupported");
+    /* Chrome TTS unlock: pehle interaction pe silent utterance */
+    const prime = () => {
+      try {
+        if ("speechSynthesis" in window) {
+          const u = new SpeechSynthesisUtterance(" ");
+          u.volume = 0;
+          speechSynthesis.speak(u);
+        }
+      } catch { /* noop */ }
+    };
+    window.addEventListener("pointerdown", prime, { once: true });
+    window.addEventListener("keydown", prime, { once: true });
+    /* watchdog: wake rec silently mar gayi to restart */
+    const iv = setInterval(() => {
+      if (aliveRef.current && phaseRef.current === "idle" && !recRef.current && SR) wakeListen();
+    }, 3000);
     return () => {
       aliveRef.current = false;
+      clearInterval(iv);
       stopRec();
       stopVoice();
     };
@@ -218,13 +252,15 @@ export default function Sakura() {
         {phase === "listen" ? <span className="sakura-live">● LIVE</span> : null}
       </div>
 
-      {/* wake hint / live caption (voice feedback — typing nahi) */}
-      {phase === "idle" && !micErr ? (
-        <div className="sakura-hint">🎧 "HEY SAKURA" bolo</div>
-      ) : null}
-      {micErr ? (
-        <div className="sakura-hint">🎙️ mic blocked — browser me permission do</div>
-      ) : null}
+      {/* live status pill — wake hint ya current phase */}
+      <div className="sakura-hint">
+        {phase === "listen" ? "👂 sun rahi hoon… bolo!"
+          : phase === "think" ? "💭 soch rahi hoon…"
+          : phase === "speak" ? "🔊 bol rahi hoon…"
+          : micErr === "blocked" ? "🎙️ mic BLOCKED — address bar se permission do"
+          : micErr ? "🎙️ mic chahiye — Chrome me kholo"
+          : '🎧 "HEY SAKURA" bolo'}
+      </div>
       {caption ? <div className="buddy-bubble sakura-caption">{caption}</div> : null}
     </>
   );
